@@ -3,6 +3,9 @@ const API_BASE_URL = window.location.origin;
 let allFilesData = [];
 let allCategoriesData = [];
 let currentCategory = "all";
+let currentActiveCategoryPath = [];
+let currentExpandedCategoryPath = [];
+let hasInitializedCategoryBrowser = false;
 let adminPassword = "";
 let isLoggedIn = false;
 let pendingMoveFile = null;
@@ -2315,6 +2318,95 @@ function getVisibleFilesByPathMap() {
 }
 
 
+function getFileCategoryPath(file) {
+  return Array.isArray(file?.categoryPath) && file.categoryPath.length
+    ? file.categoryPath.filter(Boolean)
+    : [file?.category, file?.subCategory].filter(Boolean);
+}
+
+
+function pathStartsWith(path, prefix) {
+  const fullPath = (path || []).filter(Boolean);
+  const prefixPath = (prefix || []).filter(Boolean);
+  if (prefixPath.length > fullPath.length) {
+    return false;
+  }
+  return prefixPath.every((part, index) => fullPath[index] === part);
+}
+
+
+function getFilesForCategoryPath(categoryPath) {
+  return allFilesData.filter((file) => isSameCategoryPath(getFileCategoryPath(file), categoryPath));
+}
+
+
+function ensureActiveCategoryPath(categoriesToRender) {
+  const hasScopedPath = (path) => (path || []).length > 0
+    && categoriesToRender.some((category) => pathStartsWith(path, category.path));
+  const activeWasInvalid = currentActiveCategoryPath.length > 0 && !hasScopedPath(currentActiveCategoryPath);
+  const expandedWasInvalid = currentExpandedCategoryPath.length > 0 && !hasScopedPath(currentExpandedCategoryPath);
+
+  if (activeWasInvalid) {
+    currentActiveCategoryPath = [];
+  }
+
+  if (expandedWasInvalid) {
+    currentExpandedCategoryPath = [];
+  }
+
+  const shouldBootstrapFirstCategory = categoriesToRender.length > 0
+    && (
+      !hasInitializedCategoryBrowser
+      || (activeWasInvalid && expandedWasInvalid)
+    )
+    && currentActiveCategoryPath.length === 0
+    && currentExpandedCategoryPath.length === 0;
+
+  if (shouldBootstrapFirstCategory) {
+    currentActiveCategoryPath = [...categoriesToRender[0].path];
+    currentExpandedCategoryPath = [...categoriesToRender[0].path];
+    hasInitializedCategoryBrowser = true;
+    return;
+  }
+
+  if (currentActiveCategoryPath.length === 0 && currentExpandedCategoryPath.length > 0) {
+    currentActiveCategoryPath = [...currentExpandedCategoryPath];
+  }
+}
+
+
+function createActiveFilesPanel() {
+  const panel = document.createElement("section");
+  panel.className = "active-files-panel";
+
+  const selectedPath = [...currentActiveCategoryPath];
+  const title = document.createElement("div");
+  title.className = "active-files-header";
+  title.innerHTML = `
+    <div>
+      <div class="active-files-title">${selectedPath.length ? escapeHtml(getPathLabel(selectedPath)) : "请选择栏目"}</div>
+      <div class="active-files-subtitle">${selectedPath.length ? "当前栏目的资料文件" : "展开左侧栏目后在这里查看文件"}</div>
+    </div>
+  `;
+
+  const list = document.createElement("div");
+  list.className = "active-files-list";
+
+  const files = selectedPath.length ? getFilesForCategoryPath(selectedPath) : [];
+  if (files.length === 0) {
+    list.appendChild(createEmptyText(selectedPath.length ? "当前栏目下暂无文件，可继续展开子栏目。" : "请选择左侧栏目查看资料。"));
+  } else {
+    files.forEach((file) => {
+      list.appendChild(createFileItem(file, getPageElements()));
+    });
+  }
+
+  panel.appendChild(title);
+  panel.appendChild(list);
+  return panel;
+}
+
+
 function renderFileList(els) {
   els.fileList.innerHTML = "";
 
@@ -2327,10 +2419,20 @@ function renderFileList(els) {
     return;
   }
 
-  const fileMap = getVisibleFilesByPathMap();
+  ensureActiveCategoryPath(categoriesToRender);
+  const browser = document.createElement("div");
+  browser.className = "category-browser-shell";
+
+  const tree = document.createElement("div");
+  tree.className = "category-browser-tree";
+
   categoriesToRender.forEach((category) => {
-    els.fileList.appendChild(createCategoryBlock(category, els, fileMap));
+    tree.appendChild(createCategoryBlock(category, els));
   });
+
+  browser.appendChild(tree);
+  browser.appendChild(createActiveFilesPanel());
+  els.fileList.appendChild(browser);
 }
 
 
@@ -2565,35 +2667,64 @@ function createUniqueUploadId() {
 }
 
 
-function createCategoryBlock(category, els, fileMap) {
-  return createCategoryTreeBlock(category, els, fileMap, false);
+function createCategoryBlock(category, els) {
+  return createCategoryTreeBlock(category, els, false);
 }
 
 
-function createSubCategoryBlock(category, els, fileMap) {
-  return createCategoryTreeBlock(category, els, fileMap, true);
+function createSubCategoryBlock(category, els) {
+  return createCategoryTreeBlock(category, els, true);
 }
 
 
-function buildCategoryRenderTasks(category, els, fileMap) {
-  const files = fileMap?.get(encodePathValue(category.path)) || [];
-  const tasks = [];
+function getBranchChildren(category) {
+  return Array.isArray(category?.children) ? category.children : [];
+}
 
-  (category.children || []).forEach((child) => {
-    tasks.push(() => createSubCategoryBlock(child, els, fileMap));
-  });
 
-  files.forEach((file) => {
-    tasks.push(() => createFileItem(file, els));
-  });
+function isBranchExpanded(category) {
+  if (!category?.path?.length || currentExpandedCategoryPath.length === 0) {
+    return false;
+  }
+  return pathStartsWith(currentExpandedCategoryPath, category.path);
+}
 
-  if (tasks.length === 0) {
-    tasks.push(() => createEmptyText("这个栏目下暂时还没有内容。"));
+
+function updateCategoryBrowserState(category, els) {
+  const nextPath = Array.isArray(category?.path) ? [...category.path] : [];
+  const hasChildren = getBranchChildren(category).length > 0;
+  const isSamePath = isSameCategoryPath(currentActiveCategoryPath, nextPath);
+  const isExpanded = isSameCategoryPath(currentExpandedCategoryPath, nextPath);
+
+  if (hasChildren && isSamePath && isExpanded) {
+    currentExpandedCategoryPath = nextPath.slice(0, -1);
+  } else {
+    currentExpandedCategoryPath = hasChildren ? nextPath : nextPath.slice(0, -1);
   }
 
-  return tasks;
+  currentActiveCategoryPath = nextPath;
+  hasInitializedCategoryBrowser = true;
+  renderFileList(els);
 }
 
+
+function createBranchChildrenContent(category, els, isChild) {
+  const children = getBranchChildren(category);
+  if (children.length === 0 || !isBranchExpanded(category)) {
+    return null;
+  }
+
+  const content = document.createElement("div");
+  content.className = `${isChild ? "sub-category-content" : "category-content"} branch-open`;
+  const fragment = document.createDocumentFragment();
+
+  children.forEach((child) => {
+    fragment.appendChild(createSubCategoryBlock(child, els));
+  });
+
+  content.appendChild(fragment);
+  return content;
+}
 
 function renderTasksInChunks(container, tasks, { chunkSize = 6, onComplete } = {}) {
   if (!container) {
@@ -2646,85 +2777,37 @@ function collapseSiblingTreeGroups(currentGroup) {
 }
 
 
-function createCategoryTreeBlock(category, els, fileMap, isChild) {
+function createCategoryTreeBlock(category, els, isChild) {
   const depth = Math.min(((category && category.path) || []).length || 1, MAX_CATEGORY_DEPTH);
+  const hasChildren = getBranchChildren(category).length > 0;
+  const isActive = isSameCategoryPath(currentActiveCategoryPath, category.path);
+  const isExpanded = hasChildren && isBranchExpanded(category);
   const group = document.createElement("div");
   group.className = isChild ? "sub-category-group" : "category-group";
   group.dataset.depth = String(depth);
 
   const title = document.createElement("button");
   title.type = "button";
-  title.className = `${isChild ? "sub-category-title" : "category-title"} collapsed`;
+  title.className = `${isChild ? "sub-category-title" : "category-title"}${isActive ? " is-active" : ""}${isExpanded ? " is-open" : ""}`;
   title.dataset.depth = String(depth);
   title.style.setProperty("--category-depth", String(depth));
+  title.setAttribute("aria-expanded", String(isExpanded));
   title.innerHTML = `
-    <span class="toggle-icon" aria-hidden="true">></span>
+    <span class="toggle-icon" aria-hidden="true">${hasChildren ? (isExpanded ? "v" : ">") : "-"}</span>
     <span class="category-title-bar" aria-hidden="true"></span>
     <span class="category-title-text">${escapeHtml(category.name)}</span>
   `;
-
-  const content = document.createElement("div");
-  content.className = `${isChild ? "sub-category-content" : "category-content"} collapsed`;
-  content.hidden = true;
-
-  let isRendered = false;
-  let isRendering = false;
-  const ensureRendered = () => {
-    if (isRendered || isRendering) {
-      return;
-    }
-    isRendering = true;
-    content.replaceChildren(createEmptyText("正在加载栏目内容..."));
-    renderTasksInChunks(content, buildCategoryRenderTasks(category, els, fileMap), {
-      chunkSize: depth >= 3 ? 4 : 6,
-      onComplete: () => {
-        isRendered = true;
-        isRendering = false;
-      }
-    });
-  };
-
-  const pruneRenderedChildren = () => {
-    if (!isRendered && !isRendering) {
-      return;
-    }
-    isRendered = false;
-    isRendering = false;
-    content.replaceChildren();
-  };
-
-  const collapseTree = () => {
-    title.classList.add("collapsed");
-    const icon = title.querySelector(".toggle-icon");
-    if (icon) {
-      icon.textContent = ">";
-    }
-    collapseContent(content);
-    pruneRenderedChildren();
-  };
-
-  group.__collapseTree = collapseTree;
-
   title.addEventListener("click", () => {
-    if (title.classList.contains("collapsed")) {
-      collapseSiblingTreeGroups(group);
-      title.classList.remove("collapsed");
-      const icon = title.querySelector(".toggle-icon");
-      if (icon) {
-        icon.textContent = "v";
-      }
-      expandContent(content);
-      window.requestAnimationFrame(ensureRendered);
-      return;
-    }
-    collapseTree();
+    updateCategoryBrowserState(category, els);
   });
 
   group.appendChild(title);
-  group.appendChild(content);
+  const content = createBranchChildrenContent(category, els, isChild);
+  if (content) {
+    group.appendChild(content);
+  }
   return group;
 }
-
 
 function toggleCollapse(titleNode, contentNode) {
   const isCollapsed = titleNode.classList.toggle("collapsed");
@@ -2736,30 +2819,6 @@ function toggleCollapse(titleNode, contentNode) {
     collapseContent(contentNode);
   } else {
     expandContent(contentNode);
-  }
-}
-
-
-function appendCategoryContents(content, category, els, fileMap) {
-  const files = fileMap?.get(encodePathValue(category.path)) || [];
-  const fragment = content.nodeType === Node.DOCUMENT_FRAGMENT_NODE
-    ? content
-    : document.createDocumentFragment();
-
-  (category.children || []).forEach((child) => {
-    fragment.appendChild(createSubCategoryBlock(child, els, fileMap));
-  });
-
-  files.forEach((file) => {
-    fragment.appendChild(createFileItem(file, els));
-  });
-
-  if (files.length === 0 && (category.children || []).length === 0) {
-    fragment.appendChild(createEmptyText("这个栏目下暂时还没有内容。"));
-  }
-
-  if (fragment !== content) {
-    content.replaceChildren(fragment);
   }
 }
 
