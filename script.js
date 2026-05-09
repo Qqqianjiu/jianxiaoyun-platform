@@ -2339,6 +2339,11 @@ function getFilesForCategoryPath(categoryPath) {
 }
 
 
+function isCompactCategoryBrowser() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
+
+
 function getCategoryPanelMessage(selectedPath, hasFiles) {
   if (hasFiles) {
     return "";
@@ -2465,6 +2470,128 @@ function createActiveFilesPanel() {
   return panel;
 }
 
+
+function createMobileCategoryBrowser(categoriesToRender, els) {
+  const shell = document.createElement("section");
+  shell.className = "mobile-category-browser";
+
+  const selectedPath = [...currentActiveCategoryPath];
+  const activeNode = findCategoryNodeByPath(selectedPath) || null;
+  const siblingNodes = selectedPath.length <= 1
+    ? categoriesToRender
+    : (findCategoryNodeByPath(selectedPath.slice(0, -1))?.children || []);
+
+  const trail = document.createElement("div");
+  trail.className = "mobile-category-trail";
+
+  const rootBtn = document.createElement("button");
+  rootBtn.type = "button";
+  rootBtn.className = `mobile-trail-chip${selectedPath.length === 0 ? " is-active" : ""}`;
+  rootBtn.textContent = "全部栏目";
+  rootBtn.addEventListener("click", () => {
+    currentActiveCategoryPath = categoriesToRender[0]?.path ? [...categoriesToRender[0].path] : [];
+    currentExpandedCategoryPath = currentActiveCategoryPath.length ? [...currentActiveCategoryPath] : [];
+    renderFileList(els);
+  });
+  trail.appendChild(rootBtn);
+
+  selectedPath.forEach((part, index) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `mobile-trail-chip${index === selectedPath.length - 1 ? " is-active" : ""}`;
+    chip.textContent = part;
+    chip.addEventListener("click", () => {
+      const nextPath = selectedPath.slice(0, index + 1);
+      currentActiveCategoryPath = nextPath;
+      currentExpandedCategoryPath = nextPath;
+      renderFileList(els);
+    });
+    trail.appendChild(chip);
+  });
+
+  const list = document.createElement("div");
+  list.className = "mobile-category-list";
+  siblingNodes.forEach((category) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `mobile-category-card depth-${Math.min(category.path.length, MAX_CATEGORY_DEPTH)}${isSameCategoryPath(category.path, selectedPath) ? " is-active" : ""}`;
+    button.innerHTML = `
+      <span class="mobile-category-card-bar" aria-hidden="true"></span>
+      <span class="mobile-category-card-body">
+        <span class="mobile-category-card-name">${escapeHtml(category.name)}</span>
+        <span class="mobile-category-card-meta">${(category.children || []).length ? `${category.children.length} 个子栏目` : "查看资料"}</span>
+      </span>
+      <span class="mobile-category-card-arrow" aria-hidden="true">${(category.children || []).length ? ">" : "·"}</span>
+    `;
+    button.addEventListener("click", () => {
+      const nextPath = [...category.path];
+      currentActiveCategoryPath = nextPath;
+      currentExpandedCategoryPath = nextPath;
+      renderFileList(els);
+    });
+    list.appendChild(button);
+  });
+
+  const filesPanel = document.createElement("section");
+  filesPanel.className = "active-files-panel mobile-active-files-panel";
+
+  const filesTitle = document.createElement("div");
+  filesTitle.className = "active-files-header";
+  filesTitle.innerHTML = `
+    <div>
+      <div class="active-files-title">${selectedPath.length ? escapeHtml(getPathLabel(selectedPath)) : "\u8bf7\u9009\u62e9\u680f\u76ee"}</div>
+      <div class="active-files-subtitle">${selectedPath.length ? "\u5f53\u524d\u5c42\u7ea7\u4e0b\u7684\u8d44\u6599\u6587\u4ef6" : "\u9009\u62e9\u4e0a\u65b9\u680f\u76ee\u540e\u67e5\u770b\u6587\u4ef6"}</div>
+    </div>
+  `;
+
+  const filesList = document.createElement("div");
+  filesList.className = "active-files-list";
+  renderActiveFilesListInto(filesList, selectedPath.length ? getFilesForCategoryPath(selectedPath) : [], selectedPath);
+
+  filesPanel.appendChild(filesTitle);
+  filesPanel.appendChild(filesList);
+
+  shell.appendChild(trail);
+  shell.appendChild(list);
+
+  if (activeNode?.children?.length) {
+    const childSection = document.createElement("div");
+    childSection.className = "mobile-category-children";
+
+    const childTitle = document.createElement("div");
+    childTitle.className = "mobile-category-children-title";
+    childTitle.textContent = "子栏目";
+    childSection.appendChild(childTitle);
+
+    const childList = document.createElement("div");
+    childList.className = "mobile-category-list";
+    activeNode.children.forEach((child) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `mobile-category-card depth-${Math.min(child.path.length, MAX_CATEGORY_DEPTH)}`;
+      button.innerHTML = `
+        <span class="mobile-category-card-bar" aria-hidden="true"></span>
+        <span class="mobile-category-card-body">
+          <span class="mobile-category-card-name">${escapeHtml(child.name)}</span>
+          <span class="mobile-category-card-meta">${(child.children || []).length ? `${child.children.length} 个子栏目` : "查看资料"}</span>
+        </span>
+        <span class="mobile-category-card-arrow" aria-hidden="true">${(child.children || []).length ? ">" : "·"}</span>
+      `;
+      button.addEventListener("click", () => {
+        currentActiveCategoryPath = [...child.path];
+        currentExpandedCategoryPath = [...child.path];
+        renderFileList(els);
+      });
+      childList.appendChild(button);
+    });
+    childSection.appendChild(childList);
+    shell.appendChild(childSection);
+  }
+
+  shell.appendChild(filesPanel);
+  return shell;
+}
+
 function renderFileList(els) {
   els.fileList.innerHTML = "";
 
@@ -2478,6 +2605,10 @@ function renderFileList(els) {
   }
 
   ensureActiveCategoryPath(categoriesToRender);
+  if (isCompactCategoryBrowser()) {
+    els.fileList.appendChild(createMobileCategoryBrowser(categoriesToRender, els));
+    return;
+  }
   const browser = document.createElement("div");
   browser.className = "category-browser-shell";
 
