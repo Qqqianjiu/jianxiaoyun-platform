@@ -2477,9 +2477,16 @@ function createMobileCategoryBrowser(categoriesToRender, els) {
 
   const selectedPath = [...currentActiveCategoryPath];
   const activeNode = findCategoryNodeByPath(selectedPath) || null;
+  const parentPath = selectedPath.slice(0, -1);
+  const parentNode = parentPath.length ? findCategoryNodeByPath(parentPath) : null;
+  const childNodes = Array.isArray(activeNode?.children) ? activeNode.children : [];
   const siblingNodes = selectedPath.length <= 1
     ? categoriesToRender
-    : (findCategoryNodeByPath(selectedPath.slice(0, -1))?.children || []);
+    : (parentNode?.children || []);
+  const levelNodes = childNodes.length > 0 ? childNodes : siblingNodes;
+  const levelTitle = childNodes.length > 0
+    ? "\u4e0b\u4e00\u5c42\u680f\u76ee"
+    : (selectedPath.length > 1 ? "\u540c\u7ea7\u680f\u76ee" : "\u5168\u90e8\u680f\u76ee");
 
   const trail = document.createElement("div");
   trail.className = "mobile-category-trail";
@@ -2487,7 +2494,7 @@ function createMobileCategoryBrowser(categoriesToRender, els) {
   const rootBtn = document.createElement("button");
   rootBtn.type = "button";
   rootBtn.className = `mobile-trail-chip${selectedPath.length === 0 ? " is-active" : ""}`;
-  rootBtn.textContent = "全部栏目";
+  rootBtn.textContent = "\u5168\u90e8\u680f\u76ee";
   rootBtn.addEventListener("click", () => {
     currentActiveCategoryPath = categoriesToRender[0]?.path ? [...categoriesToRender[0].path] : [];
     currentExpandedCategoryPath = currentActiveCategoryPath.length ? [...currentActiveCategoryPath] : [];
@@ -2509,9 +2516,39 @@ function createMobileCategoryBrowser(categoriesToRender, els) {
     trail.appendChild(chip);
   });
 
+  const summary = document.createElement("div");
+  summary.className = "mobile-category-summary";
+  summary.innerHTML = `
+    <div class="mobile-category-summary-body">
+      <div class="mobile-category-summary-label">\u5f53\u524d\u680f\u76ee</div>
+      <div class="mobile-category-summary-title">${selectedPath.length ? escapeHtml(getPathLabel(selectedPath)) : "\u8bf7\u9009\u62e9\u680f\u76ee"}</div>
+    </div>
+  `;
+
+  if (parentPath.length > 0) {
+    const backButton = document.createElement("button");
+    backButton.type = "button";
+    backButton.className = "mobile-category-back";
+    backButton.textContent = "\u8fd4\u56de\u4e0a\u4e00\u7ea7";
+    backButton.addEventListener("click", () => {
+      currentActiveCategoryPath = [...parentPath];
+      currentExpandedCategoryPath = [...parentPath];
+      renderFileList(els);
+    });
+    summary.appendChild(backButton);
+  }
+
+  const levelSection = document.createElement("div");
+  levelSection.className = "mobile-category-children";
+
+  const levelHeading = document.createElement("div");
+  levelHeading.className = "mobile-category-children-title";
+  levelHeading.textContent = levelTitle;
+  levelSection.appendChild(levelHeading);
+
   const list = document.createElement("div");
   list.className = "mobile-category-list";
-  siblingNodes.forEach((category) => {
+  levelNodes.forEach((category) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `mobile-category-card depth-${Math.min(category.path.length, MAX_CATEGORY_DEPTH)}${isSameCategoryPath(category.path, selectedPath) ? " is-active" : ""}`;
@@ -2519,9 +2556,9 @@ function createMobileCategoryBrowser(categoriesToRender, els) {
       <span class="mobile-category-card-bar" aria-hidden="true"></span>
       <span class="mobile-category-card-body">
         <span class="mobile-category-card-name">${escapeHtml(category.name)}</span>
-        <span class="mobile-category-card-meta">${(category.children || []).length ? `${category.children.length} 个子栏目` : "查看资料"}</span>
+        <span class="mobile-category-card-meta">${(category.children || []).length ? `${category.children.length} \u4e2a\u5b50\u680f\u76ee` : "\u67e5\u770b\u8d44\u6599"}</span>
       </span>
-      <span class="mobile-category-card-arrow" aria-hidden="true">${(category.children || []).length ? ">" : "·"}</span>
+      <span class="mobile-category-card-arrow" aria-hidden="true">${(category.children || []).length ? ">" : "\u00b7"}</span>
     `;
     button.addEventListener("click", () => {
       const nextPath = [...category.path];
@@ -2531,6 +2568,7 @@ function createMobileCategoryBrowser(categoriesToRender, els) {
     });
     list.appendChild(button);
   });
+  levelSection.appendChild(list);
 
   const filesPanel = document.createElement("section");
   filesPanel.className = "active-files-panel mobile-active-files-panel";
@@ -2552,42 +2590,8 @@ function createMobileCategoryBrowser(categoriesToRender, els) {
   filesPanel.appendChild(filesList);
 
   shell.appendChild(trail);
-  shell.appendChild(list);
-
-  if (activeNode?.children?.length) {
-    const childSection = document.createElement("div");
-    childSection.className = "mobile-category-children";
-
-    const childTitle = document.createElement("div");
-    childTitle.className = "mobile-category-children-title";
-    childTitle.textContent = "子栏目";
-    childSection.appendChild(childTitle);
-
-    const childList = document.createElement("div");
-    childList.className = "mobile-category-list";
-    activeNode.children.forEach((child) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `mobile-category-card depth-${Math.min(child.path.length, MAX_CATEGORY_DEPTH)}`;
-      button.innerHTML = `
-        <span class="mobile-category-card-bar" aria-hidden="true"></span>
-        <span class="mobile-category-card-body">
-          <span class="mobile-category-card-name">${escapeHtml(child.name)}</span>
-          <span class="mobile-category-card-meta">${(child.children || []).length ? `${child.children.length} 个子栏目` : "查看资料"}</span>
-        </span>
-        <span class="mobile-category-card-arrow" aria-hidden="true">${(child.children || []).length ? ">" : "·"}</span>
-      `;
-      button.addEventListener("click", () => {
-        currentActiveCategoryPath = [...child.path];
-        currentExpandedCategoryPath = [...child.path];
-        renderFileList(els);
-      });
-      childList.appendChild(button);
-    });
-    childSection.appendChild(childList);
-    shell.appendChild(childSection);
-  }
-
+  shell.appendChild(summary);
+  shell.appendChild(levelSection);
   shell.appendChild(filesPanel);
   return shell;
 }
