@@ -1388,12 +1388,12 @@ async function moveFile(els, file) {
 
 function executeSearch(els) {
   if (!els.searchInput || !els.searchModal || !els.searchResultList) {
-    alert("当前页面尚未完整加载搜索功能，请刷新页面后重试。");
+    alert("\u5f53\u524d\u9875\u9762\u5c1a\u672a\u5b8c\u6574\u52a0\u8f7d\u641c\u7d22\u529f\u80fd\uff0c\u8bf7\u5237\u65b0\u9875\u9762\u540e\u91cd\u8bd5\u3002");
     return;
   }
   const keyword = els.searchInput.value.trim();
   if (!keyword) {
-    showStatusMessage(els.searchStatus, "请输入要搜索的关键词。", "error");
+    showStatusMessage(els.searchStatus, "\u8bf7\u8f93\u5165\u8981\u641c\u7d22\u7684\u5173\u952e\u8bcd\u3002", "error");
     return;
   }
 
@@ -1421,13 +1421,13 @@ function executeSearch(els) {
   currentSearchPage = 1;
 
   if (results.length === 0) {
-    showStatusMessage(els.searchStatus, "未找到相关资料。", "error");
+    showStatusMessage(els.searchStatus, "\u672a\u627e\u5230\u76f8\u5173\u8d44\u6599\u3002", "error");
   } else {
-    showStatusMessage(els.searchStatus, `搜索完成，找到 ${results.length} 条相关资料。`, "success");
+    showStatusMessage(els.searchStatus, `\u641c\u7d22\u5b8c\u6210\uff0c\u627e\u5230 ${results.length} \u6761\u76f8\u5173\u8d44\u6599\u3002`, "success");
   }
 
-  els.searchKeywordLabel.textContent = `关键词：${keyword}`;
-  els.searchResultMeta.textContent = `共 ${results.length} 条结果，按相关度降序排列`;
+  els.searchKeywordLabel.textContent = `\u5173\u952e\u8bcd\uff1a${keyword}`;
+  els.searchResultMeta.textContent = `\u5171 ${results.length} \u6761\u7ed3\u679c\uff0c\u6309\u76f8\u5173\u5ea6\u964d\u5e8f\u6392\u5217`;
   renderSearchResults(els);
   els.searchModal.classList.add("show");
 }
@@ -1440,7 +1440,7 @@ function renderSearchResults(els) {
   els.searchResultList.innerHTML = "";
 
   if (searchResultsData.length === 0) {
-    els.searchResultList.innerHTML = '<p class="loading">没有找到相关资料，请尝试更换关键词。</p>';
+    els.searchResultList.innerHTML = '<p class="loading">\u6ca1\u6709\u627e\u5230\u76f8\u5173\u8d44\u6599\uff0c\u8bf7\u5c1d\u8bd5\u66f4\u6362\u5173\u952e\u8bcd\u3002</p>';
     els.searchPagination.style.display = "none";
     return;
   }
@@ -1458,7 +1458,7 @@ function renderSearchResults(els) {
   });
 
   els.searchPagination.style.display = totalPages > 1 ? "flex" : "none";
-  els.searchPageInfo.textContent = `第 ${currentSearchPage} / ${totalPages} 页`;
+  els.searchPageInfo.textContent = `\u7b2c ${currentSearchPage} / ${totalPages} \u9875`;
   els.searchPrevBtn.disabled = currentSearchPage <= 1;
   els.searchNextBtn.disabled = currentSearchPage >= totalPages;
 }
@@ -1467,20 +1467,20 @@ function renderSearchResults(els) {
 function createSearchResultCard(file, score) {
   const card = document.createElement("div");
   card.className = "search-result-card";
-  const actionLabel = file.isExternal ? "前往下载" : "下载资料";
+  const actionLabel = file.isExternal ? "\u524d\u5f80\u4e0b\u8f7d" : "\u4e0b\u8f7d\u8d44\u6599";
   card.innerHTML = `
     <div class="search-result-head">
       <div class="file-name">${escapeHtml(file.name)}</div>
-      <div class="search-result-score">相关度：${score.toFixed(2)}%</div>
+      <div class="search-result-score">\u76f8\u5173\u5ea6\uff1a${score.toFixed(2)}%</div>
     </div>
     <div class="search-result-source">
-      来源：${escapeHtml(file.category || "未分类")}${file.subCategory ? ` / ${escapeHtml(file.subCategory)}` : ""}
+      \u6765\u6e90\uff1a${escapeHtml(file.category || "\u672a\u5206\u7c7b")}${file.subCategory ? ` / ${escapeHtml(file.subCategory)}` : ""}
     </div>
-    <div class="file-info">文件类型：${escapeHtml(file.type || "未知")}</div>
-    <div class="file-info">文件大小：${escapeHtml(file.size || "未知")}</div>
-    <div class="file-info">上传时间：${escapeHtml(file.uploadTime || "未知")}</div>
-    <div class="file-info">下载次数：${escapeHtml(file.downloadCount ?? 0)}</div>
-    ${file.isExternal ? `<div class="file-info">提取码：${escapeHtml(file.extractionCode || "无")}</div>` : ""}
+    <div class="file-info">\u6587\u4ef6\u7c7b\u578b\uff1a${escapeHtml(file.type || "\u672a\u77e5")}</div>
+    <div class="file-info">\u6587\u4ef6\u5927\u5c0f\uff1a${escapeHtml(file.size || "\u672a\u77e5")}</div>
+    <div class="file-info">\u4e0a\u4f20\u65f6\u95f4\uff1a${escapeHtml(file.uploadTime || "\u672a\u77e5")}</div>
+    <div class="file-info">\u4e0b\u8f7d\u6b21\u6570\uff1a${escapeHtml(file.downloadCount ?? 0)}</div>
+    ${file.isExternal ? `<div class="file-info">\u63d0\u53d6\u7801\uff1a${escapeHtml(file.extractionCode || "\u65e0")}</div>` : ""}
     <a
       href="${escapeHtml(String(file.downloadUrl || file.url || "").trim())}"
       class="file-link"
@@ -1503,7 +1503,6 @@ function createSearchResultCard(file, score) {
   return card;
 }
 
-
 function getPageElements() {
   return {
     downloadStatusToast: document.getElementById("downloadStatusToast"),
@@ -1517,15 +1516,14 @@ async function startFileDownload(file, els, countNode) {
   const downloadUrl = String(file?.downloadUrl || "").trim();
   if (!downloadUrl) {
     showDownloadToast(els, {
-      title: "下载失败",
-      message: "未找到有效的下载地址。",
+      title: "\u4e0b\u8f7d\u5931\u8d25",
+      message: "\u672a\u627e\u5230\u6709\u6548\u7684\u4e0b\u8f7d\u5730\u5740\u3002",
       progress: 0,
       type: "error",
       autoHide: true
     });
     return;
   }
-
   if (activeDownloadAbortController) {
     activeDownloadAbortController.abort();
   }
@@ -2346,13 +2344,13 @@ function getCategoryPanelMessage(selectedPath, hasFiles) {
     return "";
   }
   return selectedPath.length
-    ? "当前栏目下暂无文件，可继续展开子栏目查看。"
-    : "请选择左侧栏目查看资料。";
+    ? "\u5f53\u524d\u680f\u76ee\u4e0b\u6682\u65e0\u6587\u4ef6\uff0c\u53ef\u7ee7\u7eed\u5c55\u5f00\u5b50\u680f\u76ee\u67e5\u770b\u3002"
+    : "\u8bf7\u9009\u62e9\u5de6\u4fa7\u680f\u76ee\u67e5\u770b\u8d44\u6599\u3002";
 }
 
 
 function getFileRenderChunkSize() {
-  return window.matchMedia("(max-width: 768px)").matches ? 4 : 10;
+  return window.matchMedia("(max-width: 768px)").matches ? 1 : 8;
 }
 
 
@@ -2367,6 +2365,10 @@ function renderActiveFilesListInto(listNode, files, selectedPath) {
   if (message) {
     listNode.appendChild(createEmptyText(message));
     return;
+  }
+
+  if (window.matchMedia("(max-width: 768px)").matches) {
+    listNode.appendChild(createEmptyText("\u6b63\u5728\u52a0\u8f7d\u8d44\u6599\u5217\u8868..."));
   }
 
   const pageElements = getPageElements();
@@ -2394,7 +2396,12 @@ function renderActiveFilesListInto(listNode, files, selectedPath) {
     }
   };
 
-  appendChunk();
+  window.requestAnimationFrame(() => {
+    if (listNode.__renderToken === token) {
+      listNode.replaceChildren();
+      appendChunk();
+    }
+  });
 }
 
 
@@ -2442,8 +2449,8 @@ function createActiveFilesPanel() {
   title.className = "active-files-header";
   title.innerHTML = `
     <div>
-      <div class="active-files-title">${selectedPath.length ? escapeHtml(getPathLabel(selectedPath)) : "?????"}</div>
-      <div class="active-files-subtitle">${selectedPath.length ? "?????????" : "??????????????"}</div>
+      <div class="active-files-title">${selectedPath.length ? escapeHtml(getPathLabel(selectedPath)) : "\u8bf7\u9009\u62e9\u680f\u76ee"}</div>
+      <div class="active-files-subtitle">${selectedPath.length ? "\u5f53\u524d\u680f\u76ee\u7684\u8d44\u6599\u6587\u4ef6" : "\u5c55\u5f00\u5de6\u4fa7\u680f\u76ee\u540e\u5728\u8fd9\u91cc\u67e5\u770b\u6587\u4ef6"}</div>
     </div>
   `;
 
