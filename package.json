@@ -1,0 +1,16 @@
+{
+  "name": "jianxiaoyun-learning-platform",
+  "version": "1.0.0",
+  "description": "建小云校园学习平台 - 零成本跨设备文件共享系统",
+  "main": "index.html",
+  "scripts": {
+    "vercel:dev": "vercel dev",
+    "vercel:deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "cloudinary": "^1.41.0"
+  },
+  "engines": {
+    "node": ">=14.x"
+  }
+}

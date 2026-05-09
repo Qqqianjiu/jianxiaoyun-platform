@@ -1,0 +1,347 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <title>建小云校园学习平台</title>
+  <meta name="description" content="建小云校园学习平台，跨设备共享学习资料，随时随地下载。">
+  <script>
+    (function () {
+      var viewportMeta = document.querySelector('meta[name="viewport"]');
+      if (viewportMeta) {
+        viewportMeta.setAttribute("content", "width=device-width, initial-scale=1.0, minimum-scale=1.0");
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="style.css?v=20260510-clean-2">
+</head>
+<body>
+  <div class="page-shell">
+    <div class="background-layer" aria-hidden="true"></div>
+    <div class="background-overlay" aria-hidden="true"></div>
+
+    <main class="page-content">
+      <header class="hero glass-panel">
+        <button
+          id="themeToggle"
+          class="theme-toggle"
+          type="button"
+          aria-label="切换夜间模式"
+          aria-pressed="false"
+        >
+          <span class="theme-toggle-track" aria-hidden="true">
+            <span class="theme-toggle-thumb"></span>
+          </span>
+          <span class="theme-toggle-text">日间</span>
+        </button>
+        <div class="hero-badge">Campus Cloud Learning</div>
+        <div class="hero-logo">
+          <img src="jianxiaoyun.jpg" alt="建小云校园学习平台圆形标志">
+        </div>
+        <h1>建小云校园学习平台</h1>
+        <p class="hero-subtitle">校园好资料 学习没烦恼</p>
+      </header>
+
+      <section class="content-grid">
+        <section class="files-stage">
+          <div class="files-header glass-panel">
+            <div class="section-heading">
+              <span class="section-tag">Core Library</span>
+              <h2>学习资料列表</h2>
+            </div>
+            <div class="header-actions">
+              <button id="refreshBtn" class="btn btn-secondary" type="button">刷新列表</button>
+            </div>
+          </div>
+
+          <div class="tabs-panel glass-panel">
+            <div class="tabs-header">
+              <div class="tabs-heading">
+                <span class="tabs-title">资料分类</span>
+                <span class="tabs-tip">可左右滑动选择</span>
+              </div>
+            </div>
+            <div class="search-bar" id="searchBar">
+              <input
+                type="text"
+                id="searchInput"
+                class="search-input"
+                placeholder="搜索资料名称关键词"
+              >
+              <button id="searchBtn" class="btn btn-primary" type="button">搜索资料</button>
+            </div>
+            <div id="searchStatus" class="status-message"></div>
+            <div class="category-tabs" id="categoryTabs">
+              <button class="tab-btn active" data-category="all" type="button">全部文件</button>
+            </div>
+          </div>
+
+          <div class="list-panel glass-panel">
+            <div id="fileList" class="file-list">
+              <p class="loading">正在加载文件列表...</p>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="admin-anchor">
+        <section class="login-section glass-panel" id="loginSection">
+          <div class="section-heading compact">
+            <span class="section-tag">Admin Access</span>
+            <h2>管理员登录</h2>
+          </div>
+          <form class="login-form" id="loginForm">
+            <div class="form-group">
+              <label for="adminPasswordLogin">管理员密码</label>
+              <input type="password" id="adminPasswordLogin" placeholder="请输入管理员密码" autocomplete="new-password">
+            </div>
+            <button id="loginBtn" class="btn btn-primary" type="submit">登录</button>
+            <div id="loginStatus" class="status-message"></div>
+          </form>
+        </section>
+
+        <section class="admin-section glass-panel" id="adminSection" style="display:none;">
+          <div class="admin-header">
+            <div class="section-heading compact">
+              <span class="section-tag">Admin Workspace</span>
+              <h2>管理员操作台</h2>
+            </div>
+            <button id="logoutBtn" class="btn btn-secondary" type="button">退出登录</button>
+          </div>
+
+          <div class="admin-buttons">
+            <button id="manageCategoriesBtn" class="btn btn-secondary" type="button">管理栏目</button>
+          </div>
+
+          <div class="upload-form">
+            <h3>上传学习资料</h3>
+
+            <div class="form-group">
+              <label for="categorySelect">选择大栏目</label>
+              <select id="categorySelect">
+                <option value="">-- 请选择大栏目 --</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="subCategoryInput">小栏目（可选）</label>
+              <div class="sub-category-container">
+                <select id="subCategorySelect">
+                  <option value="">-- 不使用小栏目 --</option>
+                </select>
+                <input type="text" id="subCategoryInput" placeholder="或输入新的小栏目名称">
+              </div>
+              <p class="hint">可选择已有小栏目，也可直接输入新名称自动创建。</p>
+            </div>
+
+            <div class="form-group">
+              <label for="fileInput">选择文件</label>
+              <input type="file" id="fileInput" multiple>
+              <p class="hint">当前存储方案支持常见文件格式，单个文件大小不超过 10MB。</p>
+            </div>
+
+            <button id="uploadBtn" class="btn btn-primary" type="button">上传文件</button>
+            <div id="uploadStatus" class="status-message"></div>
+          </div>
+
+          <div class="upload-form">
+            <h3>添加外部下载链接资料</h3>
+
+            <div class="form-group">
+              <label for="externalCategorySelect">选择大栏目</label>
+              <select id="externalCategorySelect">
+                <option value="">-- 请选择大栏目 --</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="externalSubCategoryInput">小栏目（可选）</label>
+              <div class="sub-category-container">
+                <select id="externalSubCategorySelect">
+                  <option value="">-- 不使用小栏目 --</option>
+                </select>
+                <input type="text" id="externalSubCategoryInput" placeholder="或输入新的小栏目名称">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="externalTitleInput">资料标题</label>
+              <input type="text" id="externalTitleInput" placeholder="例如：高数期末复习大题精讲">
+            </div>
+
+            <div class="form-group">
+              <label for="externalUrlInput">外部下载链接</label>
+              <input type="text" id="externalUrlInput" placeholder="请输入 http:// 或 https:// 下载链接">
+            </div>
+
+            <div class="form-group">
+              <label for="externalExtractionMode">提取码</label>
+              <div class="sub-category-container">
+                <select id="externalExtractionMode">
+                  <option value="none">无</option>
+                  <option value="custom">手动输入</option>
+                </select>
+                <input type="text" id="externalExtractionInput" placeholder="请输入提取码" disabled>
+              </div>
+            </div>
+
+            <button id="addExternalLinkBtn" class="btn btn-secondary" type="button">添加外部资料</button>
+            <div id="externalLinkStatus" class="status-message"></div>
+          </div>
+        </section>
+      </section>
+
+      <footer class="footer glass-panel">
+        <p>普通用户可直接查看和下载资料；管理员登录后可上传文件、调整栏目并维护资料结构。</p>
+      </footer>
+    </main>
+  </div>
+
+  <div id="downloadStatusToast" class="download-toast" aria-live="polite" aria-atomic="true">
+    <div class="download-toast-title" id="downloadStatusTitle">准备下载</div>
+    <div class="download-toast-message" id="downloadStatusMessage">正在建立下载连接...</div>
+    <div class="download-progress-track">
+      <div class="download-progress-bar" id="downloadProgressBar"></div>
+    </div>
+  </div>
+
+  <div id="categoryModal" class="modal">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <div>
+          <span class="section-tag">Category Control</span>
+          <h2>栏目管理</h2>
+        </div>
+        <button class="close-btn" id="closeModal" type="button" aria-label="关闭弹窗">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="manage-section">
+          <h3>添加大栏目</h3>
+          <div class="form-group inline-group">
+            <input type="text" id="newCategoryName" placeholder="输入大栏目名称，例如：考研资料">
+            <button id="addCategoryBtn" class="btn btn-primary" type="button">添加大栏目</button>
+          </div>
+        </div>
+
+        <div class="manage-section">
+          <h3>添加小栏目</h3>
+          <div class="form-group inline-group">
+            <select id="parentCategorySelect">
+              <option value="">-- 选择父栏目 --</option>
+            </select>
+            <input type="text" id="newSubCategoryName" placeholder="输入小栏目名称，例如：高等数学">
+            <button id="addSubCategoryBtn" class="btn btn-primary" type="button">添加小栏目</button>
+          </div>
+        </div>
+
+        <div class="manage-section">
+          <h3>重命名栏目</h3>
+          <div class="form-group inline-group">
+            <select id="renameCategorySelect">
+              <option value="">-- 选择要重命名的栏目 --</option>
+            </select>
+            <input type="text" id="renameCategoryInput" placeholder="输入新名称">
+            <button id="renameCategoryBtn" class="btn btn-primary" type="button">重命名</button>
+          </div>
+        </div>
+
+        <div class="manage-section">
+          <h3>删除栏目</h3>
+          <div class="form-group inline-group">
+            <select id="deleteCategorySelect">
+              <option value="">-- 选择要删除的栏目 --</option>
+            </select>
+            <button id="deleteCategoryBtn" class="btn btn-danger" type="button">删除栏目</button>
+          </div>
+          <p class="hint warning">删除栏目会同时删除该栏目下的全部文件，请谨慎操作。</p>
+        </div>
+
+        <div class="manage-section">
+          <div class="sort-section-header">
+            <div>
+              <h3>栏目排序</h3>
+              <p class="hint">按当前栏目列表顺序调整，保存后首页大栏目标签顺序会同步更新。</p>
+            </div>
+            <button id="saveCategoryOrderBtn" class="btn btn-primary" type="button">保存排序</button>
+          </div>
+          <div id="categoryOrderStatus" class="status-message"></div>
+          <div id="categoryOrderList" class="category-order-list">
+            <p class="loading">正在加载栏目排序...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="moveFileModal" class="modal">
+    <div class="modal-content glass-panel move-modal-content">
+      <div class="modal-header">
+        <div>
+          <span class="section-tag">File Move</span>
+          <h2>移动资料文件</h2>
+        </div>
+        <button class="close-btn" id="closeMoveModal" type="button" aria-label="关闭移动弹窗">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="manage-section">
+          <h3 id="moveFileName">请选择目标栏目</h3>
+          <div class="form-group">
+            <label for="moveCategorySelect">目标大栏目</label>
+            <select id="moveCategorySelect">
+              <option value="">-- 请选择目标大栏目 --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="moveSubCategorySelect">目标小栏目</label>
+            <select id="moveSubCategorySelect">
+              <option value="">-- 直接放在大栏目下 --</option>
+            </select>
+          </div>
+          <div id="moveStatus" class="status-message"></div>
+          <div class="modal-actions">
+            <button id="confirmMoveBtn" class="btn btn-primary" type="button">确认移动</button>
+            <button id="cancelMoveBtn" class="btn btn-secondary" type="button">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="searchModal" class="modal">
+    <div class="modal-content glass-panel search-modal-content">
+      <div class="modal-header">
+        <div>
+          <span class="section-tag">Search Result</span>
+          <h2>资料搜索结果</h2>
+        </div>
+        <button class="close-btn" id="closeSearchModal" type="button" aria-label="关闭搜索弹窗">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="search-summary-card">
+          <div>
+            <div class="search-summary-title" id="searchKeywordLabel">关键词：-</div>
+            <div class="search-summary-subtitle" id="searchResultMeta">共 0 条结果</div>
+          </div>
+          <button id="closeSearchFooterBtn" class="btn btn-secondary" type="button">关闭结果</button>
+        </div>
+        <div id="searchResultList" class="search-result-list">
+          <p class="loading">请输入关键词后开始搜索</p>
+        </div>
+        <div class="search-pagination" id="searchPagination" style="display:none;">
+          <button id="searchPrevBtn" class="btn btn-secondary" type="button">上一页</button>
+          <span id="searchPageInfo" class="search-page-info">第 1 页 / 共 1 页</span>
+          <button id="searchNextBtn" class="btn btn-secondary" type="button">下一页</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js?v=20260510-official-clean-3"></script>
+</body>
+</html>
