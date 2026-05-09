@@ -6,6 +6,7 @@ let currentCategory = "all";
 let currentActiveCategoryPath = [];
 let currentExpandedCategoryPath = [];
 let hasInitializedCategoryBrowser = false;
+let categoryBrowserRenderFrame = 0;
 let adminPassword = "";
 let isLoggedIn = false;
 let pendingMoveFile = null;
@@ -2340,6 +2341,63 @@ function getFilesForCategoryPath(categoryPath) {
 }
 
 
+function getCategoryPanelMessage(selectedPath, hasFiles) {
+  if (hasFiles) {
+    return "";
+  }
+  return selectedPath.length
+    ? "当前栏目下暂无文件，可继续展开子栏目查看。"
+    : "请选择左侧栏目查看资料。";
+}
+
+
+function getFileRenderChunkSize() {
+  return window.matchMedia("(max-width: 768px)").matches ? 4 : 10;
+}
+
+
+function renderActiveFilesListInto(listNode, files, selectedPath) {
+  if (!listNode) {
+    return;
+  }
+
+  const message = getCategoryPanelMessage(selectedPath, files.length > 0);
+  listNode.replaceChildren();
+
+  if (message) {
+    listNode.appendChild(createEmptyText(message));
+    return;
+  }
+
+  const pageElements = getPageElements();
+  const token = Symbol("active-files-render");
+  listNode.__renderToken = token;
+  const chunkSize = getFileRenderChunkSize();
+  let index = 0;
+
+  const appendChunk = () => {
+    if (listNode.__renderToken !== token) {
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    let processed = 0;
+    while (index < files.length && processed < chunkSize) {
+      fragment.appendChild(createFileItem(files[index], pageElements));
+      index += 1;
+      processed += 1;
+    }
+    listNode.appendChild(fragment);
+
+    if (index < files.length) {
+      window.requestAnimationFrame(appendChunk);
+    }
+  };
+
+  appendChunk();
+}
+
+
 function ensureActiveCategoryPath(categoriesToRender) {
   const hasScopedPath = (path) => (path || []).length > 0
     && categoriesToRender.some((category) => pathStartsWith(path, category.path));
@@ -2384,8 +2442,8 @@ function createActiveFilesPanel() {
   title.className = "active-files-header";
   title.innerHTML = `
     <div>
-      <div class="active-files-title">${selectedPath.length ? escapeHtml(getPathLabel(selectedPath)) : "请选择栏目"}</div>
-      <div class="active-files-subtitle">${selectedPath.length ? "当前栏目的资料文件" : "展开左侧栏目后在这里查看文件"}</div>
+      <div class="active-files-title">${selectedPath.length ? escapeHtml(getPathLabel(selectedPath)) : "?????"}</div>
+      <div class="active-files-subtitle">${selectedPath.length ? "?????????" : "??????????????"}</div>
     </div>
   `;
 
@@ -2393,19 +2451,12 @@ function createActiveFilesPanel() {
   list.className = "active-files-list";
 
   const files = selectedPath.length ? getFilesForCategoryPath(selectedPath) : [];
-  if (files.length === 0) {
-    list.appendChild(createEmptyText(selectedPath.length ? "当前栏目下暂无文件，可继续展开子栏目。" : "请选择左侧栏目查看资料。"));
-  } else {
-    files.forEach((file) => {
-      list.appendChild(createFileItem(file, getPageElements()));
-    });
-  }
+  renderActiveFilesListInto(list, files, selectedPath);
 
   panel.appendChild(title);
   panel.appendChild(list);
   return panel;
 }
-
 
 function renderFileList(els) {
   els.fileList.innerHTML = "";
@@ -2704,7 +2755,10 @@ function updateCategoryBrowserState(category, els) {
 
   currentActiveCategoryPath = nextPath;
   hasInitializedCategoryBrowser = true;
-  renderFileList(els);
+  window.cancelAnimationFrame(categoryBrowserRenderFrame);
+  categoryBrowserRenderFrame = window.requestAnimationFrame(() => {
+    renderFileList(els);
+  });
 }
 
 
