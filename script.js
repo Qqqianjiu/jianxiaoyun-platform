@@ -1213,6 +1213,197 @@ async function addExternalLinkFile(els) {
   }
 }
 
+function buildUploadCategoryPath(els) {
+  const selectedPath = getSelectedUploadPath(els);
+  const manualName = String(els.subCategoryInput?.value || "").trim();
+  if (!manualName) {
+    return selectedPath;
+  }
+
+  if (selectedPath[selectedPath.length - 1] === manualName) {
+    return selectedPath;
+  }
+
+  return [...selectedPath, manualName];
+}
+
+async function uploadFileToCloudinary(file, uploadConfig, onProgressMessage) {
+  if (!(file instanceof File)) {
+    throw new Error("未找到可上传的文件。");
+  }
+
+  const {
+    cloudName = "",
+    apiKey = "",
+    resourceType = "raw",
+    publicId = "",
+    signature = "",
+    timestamp = "",
+    context = "",
+    overwrite = "false"
+  } = uploadConfig || {};
+
+  if (!cloudName || !apiKey || !publicId || !signature || !timestamp) {
+    throw new Error("上传凭证不完整，请检查服务端上传配置。");
+  }
+
+  if (typeof onProgressMessage === "function") {
+    onProgressMessage(`正在上传 ${file.name}`);
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("api_key", apiKey);
+  formData.append("timestamp", String(timestamp));
+  formData.append("signature", signature);
+  formData.append("public_id", publicId);
+  formData.append("resource_type", resourceType);
+  formData.append("overwrite", String(overwrite));
+  if (context) {
+    formData.append("context", context);
+  }
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/${encodeURIComponent(resourceType)}/upload`, {
+    method: "POST",
+    body: formData
+  });
+
+  const result = await readJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || result?.error || `文件 ${file.name} 上传到云端失败。`);
+  }
+
+  if (!String(result.public_id || "").trim()) {
+    throw new Error(`文件 ${file.name} 上传完成，但云端未返回有效标识。`);
+  }
+
+  return result;
+}
+
+async function submitHierarchicalUpload(els) {
+  if (!assertAdmin()) {
+    showUploadStatus(els, "请先登录管理员账号。", "error");
+    return;
+  }
+
+  const targetCategoryPath = buildUploadCategoryPath(els);
+  const category = targetCategoryPath[0] || "";
+  const subCategory = targetCategoryPath[1] || "";
+  const files = Array.from(els.fileInput?.files || []);
+
+  if (!category) {
+    showUploadStatus(els, "请选择目标栏目。", "error");
+    return;
+  }
+
+  if (files.length === 0) {
+    showUploadStatus(els, "请选择要上传的文件。", "error");
+    return;
+  }
+
+  const totalSize = files.reduce((sum, file) => sum + Number(file.size || 0), 0);
+  if (totalSize > 10 * 1024 * 1024) {
+    showUploadStatus(els, "当前存储方案下，本次上传文件总大小不能超过 10MB。", "error");
+    return;
+  }
+
+  els.uploadBtn.disabled = true;
+  els.uploadBtn.textContent = "上传中...";
+  showUploadStatus(els, files.length > 1 ? "正在批量上传文件，请稍候..." : "正在上传文件，请稍候...", "success");
+
+  try {
+    let uploadedCount = 0;
+
+    for (const [index, file] of files.entries()) {
+      showUploadStatus(
+        els,
+        files.length > 1
+          ? `正在上传第 ${index + 1}/${files.length} 个文件：${file.name}`
+          : `正在上传文件：${file.name}`,
+        "success"
+      );
+
+      const response = await fetch(`${API_BASE_URL}/api/upload`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          password: adminPassword,
+          fileName: file.name,
+          category,
+          subCategory,
+          categoryPath: targetCategoryPath
+        })
+      });
+
+      const result = await readJsonResponse(response);
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `文件 ${file.name} 上传失败。`);
+      }
+
+      const uploadResult = await uploadFileToCloudinary(file, result, (message) => {
+        const progressMessage = files.length > 1
+          ? `${message}（${index + 1}/${files.length}）`
+          : message;
+        showUploadStatus(els, progressMessage, "success");
+      });
+
+      const uploadedFile = mapDirectUploadResult(uploadResult, {
+        file,
+        category,
+        subCategory,
+        categoryPath: targetCategoryPath
+      });
+
+      if (uploadedFile) {
+        allFilesData = allFilesData.filter((item) => item.publicId !== uploadedFile.publicId);
+        allFilesData.unshift(uploadedFile);
+        sortFilesByUploadTimeDesc(allFilesData);
+      }
+
+      uploadedCount += 1;
+    }
+
+    upsertCategoryPath(targetCategoryPath);
+
+    els.fileInput.value = "";
+    if (els.subCategoryInput) {
+      els.subCategoryInput.value = "";
+    }
+    if (els.subCategorySelect) {
+      els.subCategorySelect.value = "";
+    }
+
+    showUploadStatus(
+      els,
+      uploadedCount > 1 ? `批量上传成功，共上传 ${uploadedCount} 个文件。` : "上传成功。",
+      "success"
+    );
+
+    syncCategoryViews(els, {
+      selectedCategory: category,
+      activeCategory: category
+    });
+    await Promise.all([loadCategories(els), loadFileList(els)]);
+    syncCategoryViews(els, {
+      selectedCategory: category,
+      activeCategory: category
+    });
+    renderAllCategoryViews(els);
+  } catch (error) {
+    console.error("Upload failed:", error);
+    showUploadStatus(els, error.message || "上传失败。", "error");
+  } finally {
+    els.uploadBtn.disabled = false;
+    els.uploadBtn.textContent = "上传文件";
+  }
+}
+
+async function submitHierarchicalExternalLink(els) {
+  await addExternalLinkFile(els);
+}
+
 
 function openMoveModal(els, file) {
   if (!els.moveFileModal || !els.moveFileName || !els.moveCategorySelect || !els.moveSubCategorySelect) {
